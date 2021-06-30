@@ -24,7 +24,8 @@
         unique-opened
         :collapse="isCollapse"
         :collapse-transition="false"
-        router>
+        router
+        :default-active="activePath">
         <!-- 一级菜单 -->
         <el-submenu :index="item.id+''" v-for="item in menuList" :key="item.id" >
           <!-- 一级菜单模板 -->
@@ -35,7 +36,7 @@
             <span>{{item.authName}}</span>
           </template>
           <!-- 二级子菜单 -->
-          <el-menu-item :index="'/'+ subItem.path" v-for="subItem in item.children" :key="subItem.id">
+          <el-menu-item :index="'/'+ subItem.path" v-for="subItem in item.children" :key="subItem.id" @click="saveNavState('/'+ subItem.path)">
             <!-- 二级菜单模板 -->
             <template slot="title">
               <!-- 图标 -->
@@ -70,12 +71,14 @@ export default {
         '102': 'iconfont icon-danju',
         '145': 'iconfont icon-baobiao'
       },
-      isCollapse: false
+      isCollapse: false,
+      activePath: ''
     }
   },
   created() {
     // 在created阶段请求左侧菜单数据
     this.getMenuList()
+    this.activePath = window.sessionStorage.getItem('activePath')
   },
   methods: {
     logout() {
@@ -88,10 +91,14 @@ export default {
       if (parseInt(res.meta.status) !== 200) return this.$message.error(res.meta.msg)
 
       this.menuList = res.data
-      console.log(res)
+      // console.log(res)
     },
     toggleCollapse() {
       this.isCollapse = !this.isCollapse
+    },
+    saveNavState(activePath) {
+      window.sessionStorage.setItem('activePath', activePath)
+      this.activePath = activePath
     }
   }
 }
