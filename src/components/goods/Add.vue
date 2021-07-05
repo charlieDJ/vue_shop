@@ -100,6 +100,7 @@
               :on-remove="handleRemove"
               list-type="picture"
               :headers="herderObj"
+              :on-success="uploadSuccess"
             >
               <el-button size="small" type="primary">点击上传</el-button>
             </el-upload>
@@ -122,7 +123,9 @@ export default {
         goods_price: 0,
         goods_weight: 0,
         goods_number: 0,
-        goods_cat: []
+        goods_cat: [],
+        // 商品图片数组
+        pics: []
       },
       cateProps: {
         label: 'cat_name',
@@ -176,6 +179,7 @@ export default {
       herderObj: {
         Authorization: window.sessionStorage.getItem('token')
       }
+
     }
   },
   created() {
@@ -251,6 +255,14 @@ export default {
         }
         this.onlyTableData = res.data
       }
+    },
+    uploadSuccess(response) {
+      // 可能后端上传出错
+      if (response.meta.status !== 200) {
+        this.$message.error(response.meta.msg)
+      }
+      this.addForm.pics.push(response.data.tmp_path)
+      console.log(this.addForm.pics)
     },
     // 处理图片预览
     handlePreview() {
