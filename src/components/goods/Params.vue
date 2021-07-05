@@ -74,6 +74,7 @@
                   class="button-new-tag"
                   size="small"
                   @click="showInput(scope.row)"
+                  close="handleClose(i,scope.row)"
                   >+ New Tag</el-button
                 >
               </template>
@@ -116,7 +117,37 @@
           <!-- 静态属性表格 -->
           <el-table :data="onlyTableData" border stripe>
             <!-- 展开行 -->
-            <el-table-column type="expand"></el-table-column>
+            <el-table-column type="expand">
+              <template slot-scope="scope">
+                <!-- 循环渲染Tag标签 -->
+                <el-tag
+                  v-for="(item, i) in scope.row.attr_vals"
+                  :key="i"
+                  closable
+                  @close="handleClose(i, scope.row)"
+                  >{{ item }}</el-tag
+                >
+                <!-- 输入的文本框 -->
+                <el-input
+                  class="input-new-tag"
+                  v-if="scope.row.inputVisible"
+                  v-model="scope.row.inputValue"
+                  ref="saveTagInput"
+                  size="small"
+                  @keyup.enter.native="handleInputConfirm(scope.row)"
+                  @blur="handleInputConfirm(scope.row)"
+                >
+                </el-input>
+                <!-- 添加按钮 -->
+                <el-button
+                  v-else
+                  class="button-new-tag"
+                  size="small"
+                  @click="showInput(scope.row)"
+                  >+ New Tag</el-button
+                >
+              </template>
+            </el-table-column>
             <!-- 索引列 -->
             <el-table-column type="index"></el-table-column>
             <el-table-column
@@ -394,15 +425,21 @@ export default {
       this.handleChange()
     },
     // 最后对应文本框的事件和按钮的事件添加处理函数
-    handleInputConfirm() {
+    handleInputConfirm(row) {
       // 当用户在文本框中按下enter键或者焦点离开时都会触发执行
       // 判断用户在文本框中输入的内容是否合法
-      //   if (row.inputValue.trim().length === 0) {
-      //     row.inputValue = ''
-      //     row.inputVisible = false
-      //   }
-      // row.inputVisible = false
+      if (row.inputValue.trim().length === 0) {
+        row.inputValue = ''
+        row.inputVisible = false
+        return
+      }
+      row.inputVisible = false
       // 如果用户输入了真实合法的数据，需要保存起来
+      row.attr_vals.push(row.inputValue.trim())
+      row.inputValue = ''
+      row.inputVisible = false
+      // 持久化
+      this.saveAttrVals(row)
     },
     showInput(row) {
       // 用户点击添加按钮时触发
@@ -412,6 +449,34 @@ export default {
         // 让文本框自动获得焦点
         this.$refs.saveTagInput.$refs.input.focus()
       })
+    },
+    async saveAttrVals(row) {
+      if (!this.cateId) {
+        console.log('分类参数为空')
+        return
+      }
+      // 封装函数，完成保存可选项的操作
+      // 发起请求，保存参数细项
+      const { data: res } = await this.$http.put(
+        `categories/${this.cateId}/attributes/${row.attr_id}`,
+        {
+          attr_name: row.attr_name,
+          attr_sel: row.attr_sel,
+          attr_vals: row.attr_vals.join(' ')
+        }
+      )
+
+      if (res.meta.status !== 200) {
+        return this.$message.error('修改参数项失败')
+      }
+
+      this.$message.success('修改参数项成功')
+    },
+    handleClose(index, row) {
+      // 删除对应索引的参数可选项
+      row.attr_vals.splice(index, 1)
+      // 调用函数，完成保存可选项的操作
+      this.saveAttrVals(row)
     }
   },
   computed: {
