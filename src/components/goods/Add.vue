@@ -105,14 +105,25 @@
               <el-button size="small" type="primary">点击上传</el-button>
             </el-upload>
           </el-tab-pane>
-          <el-tab-pane label="商品内容" name="4">商品内容</el-tab-pane>
+          <el-tab-pane label="商品内容" name="4">
+            <quill-editor v-model="addForm.goods_introduce">
+
+            </quill-editor>
+            <el-button type="primary" class="btnAdd" @click="add">确认添加商品</el-button>
+          </el-tab-pane>
         </el-tabs>
       </el-form>
     </el-card>
+    <!-- 预览图片对话框 -->
+    <el-dialog title="图片预览" :visible.sync="previewVisible" width="50%">
+      <img :src="previewPath" class="previewImg" />
+    </el-dialog>
   </div>
 </template>
 
 <script>
+// 官方推荐将lodash导入为_
+import _ from 'lodash'
 export default {
   data() {
     return {
@@ -125,7 +136,9 @@ export default {
         goods_number: 0,
         goods_cat: [],
         // 商品图片数组
-        pics: []
+        pics: [],
+        goods_introduce: '',
+        attrs: []
       },
       cateProps: {
         label: 'cat_name',
@@ -178,8 +191,11 @@ export default {
       // 请求头对象
       herderObj: {
         Authorization: window.sessionStorage.getItem('token')
-      }
-
+      },
+      // 保存预览图片的url地址
+      previewPath: '',
+      // 控制预览图片对话框的显示和隐藏
+      previewVisible: false
     }
   },
   created() {
@@ -261,16 +277,65 @@ export default {
       if (response.meta.status !== 200) {
         this.$message.error(response.meta.msg)
       }
-      this.addForm.pics.push(response.data.tmp_path)
-      console.log(this.addForm.pics)
+      this.addForm.pics.push({ pic: response.data.tmp_path })
+      // console.log(this.addForm.pics)
     },
     // 处理图片预览
-    handlePreview() {
-
+    handlePreview(file) {
+      // 当用户点击图片进行预览时执行，处理图片预览
+    // 形参file就是用户预览的那个文件
+      this.previewPath = file.response.data.url
+      // 显示预览图片对话框
+      this.previewVisible = true
     },
     // 处理图片移除操作
-    handleRemove() {
+    handleRemove(file) {
+      // 获取路径，在file对象中，使用console.log查看路径在哪个位置
+      // 然后从数组pics中移除
+      const filePath = file.response.data.tem_path
+      // 使用findIndex来查找符合条件的索引
+      const index = this.addForm.pics.findIndex(item => item.pic === filePath)
+      // 移除索引对应的图片
+      this.addForm.pics.splice(index, 1)
+    },
+    // 编写点击事件完成商品添加
+    add() {
+      this.$refs.addFormRef.validate(async valid => {
+        if (!valid) return this.$message.error('请填写必要的表单项!')
 
+        // 将addForm进行深拷贝，避免goods_cat数组转换字符串之后导致级联选择器报错
+        const form = _.cloneDeep(this.addForm)
+        // 将goods_cat从数组转换为"1,2,3"字符串形式
+        form.goods_cat = form.goods_cat.join(',')
+        // 处理attrs数组，数组中需要包含商品的动态参数和静态属性
+        // 将manyTableData（动态参数）处理添加到attrs
+        // 处理动态参数
+        this.manyTableData.forEach(item => {
+          const newInfo = {
+            attr_id: item.attr_id,
+            attr_value: item.attr_vals.join(' ')
+          }
+          this.addForm.attrs.push(newInfo)
+        })
+        // 处理静态属性
+        this.onlyTableData.forEach(item => {
+          const newInfo = { attr_id: item.attr_id, attr_value: item.attr_vals }
+          this.addForm.attrs.push(newInfo)
+        })
+        form.attrs = this.addForm.attrs
+        console.log(form)
+
+        // 发起请求添加商品
+        // 商品的名称，必须是唯一的
+        const { data: res } = await this.$http.post('goods', form)
+
+        if (res.meta.status !== 201) {
+          return this.$message.error('添加商品失败！')
+        }
+
+        this.$message.success('添加商品成功！')
+        this.$router.push('/goods')
+      })
     }
   },
   computed: {
@@ -287,5 +352,11 @@ export default {
 <style lang="less" scoped>
 .el-checkbox {
   margin: 0 10px 0 0 !important;
+}
+.previewImg {
+  width: 100%;
+}
+.btnAdd {
+  margin-top: 15px;
 }
 </style>
